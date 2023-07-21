@@ -1,9 +1,9 @@
-nltk==3.6.5
-numpy==1.22.3
-pandas==1.3.5
-matplotlib==3.5.1
-seaborn==0.11.2
-streamlit==1.12.0
-wordcloud==1.8.1
+nltk
+numpy
+pandas
+matplotlib
+seaborn
+streamlit
+wordcloud
 openai
 dotenv
