@@ -16,7 +16,7 @@ import seaborn as sns
 
 # Descargar los recursos necesarios
 nltk.download('vader_lexicon_es')
-#nltk.download('punkt')
+nltk.download('punkt')
 
 
 # Cargar las stopwords del archivo "stopwords-es.txt"
