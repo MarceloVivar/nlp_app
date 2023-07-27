@@ -2,7 +2,6 @@ import nltk
 from nltk.tokenize import sent_tokenize
 from nltk.tokenize import word_tokenize
 import string
-import openai
 import streamlit as st
 from wordcloud import WordCloud
 from collections import Counter
@@ -13,28 +12,11 @@ from io import BytesIO
 import base64
 from PIL import Image
 import seaborn as sns
-import os
-from dotenv import load_dotenv
-
-# Cargar variables de entorno desde el archivo .env
-load_dotenv()
-#st.write(load_dotenv())
-# Leer la clave de la API desde las variables de entorno
-api_key = os.getenv('API_KEY')
-
-# Verificar si la clave se ha leído correctamente
-if api_key is None:
-    raise ValueError("No se encontró la clave de la API. Asegúrate de configurar la variable de entorno API_KEY.")
-
-# Configurar la clave de la API de OpenAI
-openai.api_key = api_key
-
-
 
 
 # Descargar los recursos necesarios
 nltk.download('vader_lexicon_es')
-nltk.download('punkt')
+#nltk.download('punkt')
 
 
 # Cargar las stopwords del archivo "stopwords-es.txt"
@@ -53,66 +35,6 @@ def load_text_from_file():
     return None
 
 
-def summarize_text(texto, max_tokens):
-    
-    # Dividir el texto en oraciones
-    sentences = sent_tokenize(texto)
-
-    # Dividir el texto en fragmentos más pequeños, asegurándose de que cada fragmento comience con el final de la oración anterior
-    fragments = []
-    current_fragment = ""
-    for sentence in sentences:
-        if len(current_fragment) + len(sentence) + 1 < 4096:
-            current_fragment += sentence + " "
-        else:
-            fragments.append(current_fragment.strip())
-            current_fragment = sentence + " "
-    fragments.append(current_fragment.strip())
-
-    # Resumir cada fragmento por separado
-    summaries = []
-    for fragment in fragments:
-        resumen = openai.Completion.create(
-            model="text-davinci-003",
-            prompt=fragment,
-            temperature=.5,
-            max_tokens=max_tokens
-        )
-        summaries.append(resumen.choices[0].text.strip())
-
-    # Concatenar los resúmenes de los fragmentos para obtener el resumen final
-    result = ' '.join(summaries)
-
-    # Encontrar la posición del último punto
-    last_periods = result.rfind('.')
-
-    # Recortar el texto hasta la posición del último punto
-    result = result[:last_periods + 1]
-    st.write(result)
-    return result
-
-
-
-# Función para generar el texto
-def generate_text(prompt, num_words):
-    response = openai.Completion.create(
-        engine="text-davinci-003",
-        prompt=prompt,
-        temperature=0.7,
-        max_tokens=num_words,
-        n=1,
-        stop=None
-    )
-    generated_text = response.choices[0].text.strip()
-
-    # Encontrar la posición del último punto
-    last_period = generated_text.rfind('.')
-
-    # Recortar el texto hasta la posición del último punto
-    generated_text = generated_text[:last_period + 1]
-
-    return generated_text
-
 # Variables para el PDF
 pdf_buffer = BytesIO()
 pdf_filename = "analisis_texto.pdf"
@@ -129,15 +51,10 @@ def main():
     st.image(image, width=150)
     st.title("Herramienta de Análisis de Texto")
     descargar_texto = st.sidebar.button("Ver texto")
-    st.sidebar.title("Resumir Texto")
-    max_token = st.sidebar.number_input("Largo del texto resumen", min_value=10, max_value=300, value=50, step=10)
-    boton_resumir = st.sidebar.button("Resumir")
+    frec_pal = st.sidebar.number_input("Frecuencia mínima de palabras a plotear", min_value=1, max_value=30, value=1, step=1)
     st.sidebar.title("Análisis de Sentimientos")
     analyze_sentiment_button = st.sidebar.button("Analizar Sentimientos")
-    st.sidebar.title("Generador de texto")
-    text_input = st.sidebar.text_input("Ingresa tu texto")
-    generate_text_button = st.sidebar.button("Generar Texto")
-    num_words = st.sidebar.number_input("Número de tokens en el texto generado", min_value=10, max_value=100, value=50, step=10)
+    word_to_search = st.sidebar.text_input("Ingresa una palabra para buscar en el texto")
 
     def join_afinn_scores(filtered_text, afinn):
         # Convertir filtered_text en un DataFrame con una sola columna llamada "Palabra"
@@ -184,29 +101,12 @@ def main():
                         st.markdown(href, unsafe_allow_html=True)
                 
 
-    
-    
-    if boton_resumir:
-        if input_text:
-            resultdo=summarize_text(input_text, max_token)
-            download_text(resultdo)
-            
-        else:
-            st.write('Hubo un error')
-
-    
-    
     if descargar_texto:
         if input_text:
             st.write(input_text)
         else:
             st.write('Hubo un error')
 
-    if generate_text_button:
-        if text_input:
-            generated_text_value = generate_text(text_input, num_words)
-            st.write("Texto generado:")
-            st.write(generated_text_value)
 
     if analyze_sentiment_button:
         if input_text:
@@ -224,14 +124,14 @@ def main():
             word_freq = Counter(filtered_words)
             word_freq_df = pd.DataFrame.from_dict(word_freq, orient='index', columns=['Frecuencia'])
             word_freq_df = word_freq_df.sort_values(by='Frecuencia', ascending=False)
-            word_freq_df = word_freq_df[word_freq_df['Frecuencia'] > 2]
+            word_freq_df = word_freq_df[word_freq_df['Frecuencia'] > frec_pal]
 
             # Plot de nube de palabras
             wordcloud = WordCloud(width=800, height=400).generate(filtered_text)
 
             # Calcular las palabras positivas y negativas
             reviews_afinn = join_afinn_scores(filtered_words, afinn_lexicon)
-            top_words = reviews_afinn.nlargest(num_words, 'contribution')
+            top_words = reviews_afinn.nlargest(50, 'contribution')
             positive_words, negative_words = separate_positive_negative(top_words)
             
 
@@ -298,10 +198,31 @@ def main():
                 st.sidebar.write(f"La palabra '{word}' es negativa.")
             else:
                 st.sidebar.write(f"La palabra '{word}' es neutral.")
+    
+    
+    def buscar_palabra_en_oracion(texto, palabra):
+        # Tokenizar el texto en oraciones
+        oraciones = sent_tokenize(texto)
+
+        # Buscar la palabra en cada oración
+        oraciones_con_palabra = [oracion for oracion in oraciones if palabra.lower() in oracion.lower()]
+
+        return oraciones_con_palabra
+            
+   
+    
+    if word_to_search:
+        oraciones_con_palabra = buscar_palabra_en_oracion(input_text, word_to_search)
+        if oraciones_con_palabra:
+            st.write(f"La palabra '{word_to_search}' se encuentra en las siguientes oraciones:")
+            for oracion in oraciones_con_palabra:
+                st.write(oracion)
+        else:
+            st.write(f"La palabra '{word_to_search}' no se encuentra en ninguna oración.")
 
     # Mostrar la interfaz de usuario
     st.sidebar.write("---")
-    st.sidebar.write("¡Diviértete generando texto y analizando sentimientos!")
+    st.sidebar.write("¡Con esta herramienta podes resumir y analizar diferentes textos!")
 
 if __name__ == "__main__":
     main()
