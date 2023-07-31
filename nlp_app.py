@@ -22,6 +22,9 @@ nltk.download('punkt')
 # Cargar las stopwords del archivo "stopwords-es.txt"
 with open('stopwords-es.txt', 'r', encoding='utf-8') as file:
     stopwords_es = file.read().splitlines()
+    
+
+    
 
 # Cargar el lexicon AFINN en español
 afinn_lexicon = pd.read_csv("lexico_afinn_en_es.csv", encoding="ISO-8859-1")
@@ -74,9 +77,16 @@ def main():
     boton_comparar = st.sidebar.button("Comparar")
     st.sidebar.title("Análisis de Sentimientos")
     frec_pal = st.sidebar.number_input("Frecuencia mínima de palabras a plotear", min_value=1, max_value=30, value=1, step=1)
+    # Añadir un campo de entrada para que los usuarios ingresen palabras ad hoc
+    st.sidebar.title("Stopword adicionales")
+    new_stopword = st.sidebar.text_input("Ingresa una palabra adicional:", "")
     analyze_sentiment_button = st.sidebar.button("Analizar Sentimientos")
     st.sidebar.title("Palabras claves")
     word_to_search = st.sidebar.text_input("Ingresa una palabra para buscar en el texto 1")
+    
+    # Agregar la palabra adicional a la lista de stopwords si se ingresó una palabra válida
+    if new_stopword and new_stopword not in stopwords_es:
+            stopwords_es.append(new_stopword.lower())
 
     def join_afinn_scores(filtered_text, afinn):
         # Convertir filtered_text en un DataFrame con una sola columna llamada "Palabra"
