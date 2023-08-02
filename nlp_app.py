@@ -12,6 +12,12 @@ from io import BytesIO
 import base64
 from PIL import Image
 import seaborn as sns
+import time
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.nlp.tokenizers import Tokenizer
+from sumy.summarizers.lex_rank import LexRankSummarizer
+from io import StringIO
+import nltk
 
 
 # Descargar los recursos necesarios
@@ -75,12 +81,18 @@ def main():
     st.sidebar.title("Comparar Dos Textos")
     st.sidebar.write("Cargar el segundo texto para comparar:")
     boton_comparar = st.sidebar.button("Comparar")
+    
     st.sidebar.title("Análisis de Sentimientos")
     frec_pal = st.sidebar.number_input("Frecuencia mínima de palabras a plotear", min_value=1, max_value=30, value=1, step=1)
+    
     # Añadir un campo de entrada para que los usuarios ingresen palabras ad hoc
-    st.sidebar.title("Stopword adicionales")
+    st.sidebar.title("Ingresar Stopword adicionales")
     new_stopword = st.sidebar.text_input("Ingresa una palabra adicional:", "")
     analyze_sentiment_button = st.sidebar.button("Analizar Sentimientos")
+    
+    st.sidebar.title('Resumir el texto 1')
+    boton_resumir = st.sidebar.button('Resumir')
+    
     st.sidebar.title("Palabras claves")
     word_to_search = st.sidebar.text_input("Ingresa una palabra para buscar en el texto 1")
     
@@ -124,24 +136,8 @@ def main():
         ax.set_ylabel("Palabra")
         return fig
     
-    def download_text(txt1, txt2, df_common_tokens, df_top_tokens_1, df_top_tokens_2):
-        # Guardar el resumen de ambos textos en archivos de texto separados
-        with open("resumen_texto_1.txt", "w", encoding="utf-8") as file1:
-            file1.write(txt1)
-        with open("resumen_texto_2.txt", "w", encoding="utf-8") as file2:
-            file2.write(txt2)
-
-        # Codificar los archivos de texto a base64 para descargarlos
-        with open("resumen_texto_1.txt", "rb") as file1:
-            b64_text1 = base64.b64encode(file1.read()).decode()
-            href_text1 = f'<a href="data:application/txt;base64,{b64_text1}" download="resumen_texto_1.txt">Descargar Resumen Texto 1</a>'
-            st.markdown(href_text1, unsafe_allow_html=True)
-
-        with open("resumen_texto_2.txt", "rb") as file2:
-            b64_text2 = base64.b64encode(file2.read()).decode()
-            href_text2 = f'<a href="data:application/txt;base64,{b64_text2}" download="resumen_texto_2.txt">Descargar Resumen Texto 2</a>'
-            st.markdown(href_text2, unsafe_allow_html=True)
-
+    def download_text( df_common_tokens, df_top_tokens_1, df_top_tokens_2):
+    
         # Crear un DataFrame para los resultados de la comparación
         df_common_tokens['Palabra'] = df_common_tokens.index
         df_common_tokens.reset_index(drop=True, inplace=True)
@@ -212,7 +208,7 @@ def main():
 
             
 
-        return filtered_text, filtered_text_2, df_common_tokens, df_top_tokens_1, df_top_tokens_2
+        return  df_common_tokens, df_top_tokens_1, df_top_tokens_2
         
     if descargar_texto:
         if input_text:
@@ -221,23 +217,96 @@ def main():
             st.write('Hubo un error')  
             
     if descargar_texto_2:
-        if input_text:
+        if input_text_2:
             st.write(input_text_2)
         else:
             st.write('Hubo un error')         
 
     if boton_comparar:
         if input_text:
-            filtered_text, filtered_text_2, df_common_tokens, df_top_tokens_1, df_top_tokens_2 = comparer(input_text, input_text_2)
+            df_common_tokens, df_top_tokens_1, df_top_tokens_2 = comparer(input_text, input_text_2)
             # Descargar el resumen de ambos textos y los resultados de la comparación
-            download_text(filtered_text, filtered_text_2,df_common_tokens, df_top_tokens_1, df_top_tokens_2)
+            download_text(df_common_tokens, df_top_tokens_1, df_top_tokens_2)
 
 
             st.success("Resultados de la comparación guardados en 'resultados_comparacion.xlsx'.")
 
         else:
+     
             st.write("Por favor, ingresa texto antes de comparar.")
 
+    def resumir_text(input_text):
+                with st.spinner('Processing...'):
+                    time.sleep(2)
+                    if len(input_text) < 1000 or len(input_text) > 50000:
+                        st.error('Please upload a file between 1,000 and 10,000 characters')
+                    else:
+                        # Utilizar un tokenizador para español
+                        tokenizer = Tokenizer("spanish")
+                        parser = PlaintextParser.from_string(input_text, tokenizer)
+
+                        # Generar resumen utilizando LexRank
+                        lex_rank_summarizer = LexRankSummarizer()
+                        lexrank_summary = lex_rank_summarizer(parser.document, sentences_count=3)
+                        lexrank_summa = ''
+                        for sentence in lexrank_summary:
+                            lexrank_summa = lexrank_summa + str(sentence)
+
+                        # Calcular resumen utilizando Scoring Model con stopwords en español
+                        text = input_text
+                        words = nltk.word_tokenize(text, language='spanish')  # Tokenización en español
+                        freqTable = dict()
+                        for word in words:
+                            word = word.lower()
+                            if word in stopwords_es:
+                                continue
+                            if word in freqTable:
+                                freqTable[word] += 1
+                            else:
+                                freqTable[word] = 1
+                        sentences = nltk.sent_tokenize(text, language='spanish')  # Tokenización de oraciones en español
+                        sentenceValue = dict()
+                        for sentence in sentences:
+                            for word, freq in freqTable.items():
+                                if word in sentence.lower():
+                                    if sentence in sentenceValue:
+                                        sentenceValue[sentence] += freq
+                                    else:
+                                        sentenceValue[sentence] = freq
+                        sumValues = 0
+                        for sentence in sentenceValue:
+                            sumValues += sentenceValue[sentence]
+                        average = int(sumValues / len(sentenceValue))
+                        summary = ''
+                        for sentence in sentences:
+                            if (sentence in sentenceValue) and (sentenceValue[sentence] > (1.3 * average)):
+                                summary += " " + sentence
+                        scoring_summa = summary
+
+                        # Mostrar los resúmenes generados
+                        st.markdown('___')
+                        st.write('LexRank Model')
+                        st.success(lexrank_summa)
+
+                        st.markdown('___')
+                        st.write('Scoring Model')
+                        st.success(scoring_summa)
+
+                        # Agregar opción para descargar resumen en un archivo de texto
+                        if st.button('Descargar Resumen'):
+                            with open('resumen.txt', 'w', encoding='utf-8') as f:
+                                f.write("Resumen generado por LexRank Model:\n\n")
+                                f.write(lexrank_summa)
+                                f.write("\n\nResumen generado por Scoring Model:\n\n")
+                                f.write(scoring_summa)
+
+                        st.balloons()
+
+    if boton_resumir:
+             resumir_text(input_text)
+
+
+    
 
     if analyze_sentiment_button:
         if input_text:
@@ -358,3 +427,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
