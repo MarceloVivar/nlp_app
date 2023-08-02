@@ -78,19 +78,18 @@ def main():
     # Botón "Ver texto 2"
     descargar_texto_2 = col2.button("Ver texto 2")
     
-    st.sidebar.title("Comparar Dos Textos")
-    st.sidebar.write("Cargar el segundo texto para comparar:")
+    st.sidebar.title("Comparar Textos")
     boton_comparar = st.sidebar.button("Comparar")
     
     st.sidebar.title("Análisis de Sentimientos")
     frec_pal = st.sidebar.number_input("Frecuencia mínima de palabras a plotear", min_value=1, max_value=30, value=1, step=1)
     
     # Añadir un campo de entrada para que los usuarios ingresen palabras ad hoc
-    st.sidebar.title("Ingresar Stopword adicionales")
+    st.sidebar.title("Stopword adicionales")
     new_stopword = st.sidebar.text_input("Ingresa una palabra adicional:", "")
     analyze_sentiment_button = st.sidebar.button("Analizar Sentimientos")
     
-    st.sidebar.title('Resumir el texto 1')
+    st.sidebar.title('Resumir el Texto 1')
     boton_resumir = st.sidebar.button('Resumir')
     
     st.sidebar.title("Palabras claves")
