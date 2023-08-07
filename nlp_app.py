@@ -30,37 +30,41 @@ with open('stopwords-es.txt', 'r', encoding='utf-8') as file:
     stopwords_es = file.read().splitlines()
     
 
-    
-
 # Cargar el lexicon AFINN en español
 afinn_lexicon = pd.read_csv("lexico_afinn_en_es.csv", encoding="ISO-8859-1")
 
-# Función para cargar un archivo TXT desde el disco local
-st.sidebar.title("Cargar Textos")
-def load_text_from_file():
-    uploaded_file = st.sidebar.file_uploader("Cargar archivo TXT 1", type=["txt"])
-    if uploaded_file is not None:
-        return uploaded_file.read().decode()
-    return None
 
-def load_text_from_file_2():
-    uploaded_file = st.sidebar.file_uploader("Cargar archivo TXT 2", type=["txt"])
-    if uploaded_file is not None:
-        return uploaded_file.read().decode()
-    return None
+
+
+    # Mostrar la interfaz de usuario
+st.sidebar.markdown("#### Con esta herramienta podes analizar y comparardiferentes textos")
+
 
 # Variables para el PDF
 pdf_buffer = BytesIO()
 pdf_filename = "analisis_texto.pdf"
 
-
+st.markdown("""
+<style>
+div.stButton > button:first-child {
+    background-color: #f8f9f5;
+    color:#463f3c;
+    font-size:9px%,
+   
+    
+}
+div.stButton > button:hover {
+   opacity: 0.6;
+    }
+</style>""", unsafe_allow_html=True)
 
 # Lógica de generación de texto y análisis de sentimientos
+
 def main():
 
     
-    input_text = load_text_from_file()
-    input_text_2 = load_text_from_file_2()
+    
+    
     image = Image.open('logoBA.png')
 
      
@@ -68,33 +72,85 @@ def main():
     # Crear la interfaz de usuario
     st.image(image, width=150)
     st.title("Herramienta de Análisis de Texto")
-    
-    # Crear dos columnas para los botones "Ver texto 1" y "Ver texto 2"
-    col1, col2 = st.sidebar.columns(2)
+      
+  
+   # Función para cargar un archivo TXT desde el disco local
+   # Dividir el espacio en columnas con porcentajes específicos
+    col13, col14 = st.sidebar.columns([8, 2])
+    def load_text_from_file():
+        uploaded_file = col13.file_uploader("Cargar texto para analizar", type=["txt"])
+        if uploaded_file is not None:
+            return uploaded_file.read().decode()
+        return None
+    input_text = load_text_from_file()
 
     # Botón "Ver texto 1"
-    descargar_texto = col1.button("Ver texto 1")
-
-    # Botón "Ver texto 2"
-    descargar_texto_2 = col2.button("Ver texto 2")
+    descargar_texto = col14.button("Ver")
     
-    st.sidebar.title("Comparar Textos")
+    st.sidebar.write("---")
+    st.sidebar.markdown("#### Análisis de Sentimientos")
+
+    frec_pal = st.sidebar.number_input("Frecuencia mínima de palabras a plotear", min_value=1, max_value=30, value=1, step=1)
+    st.sidebar.write("   ")
+    
+    # Inicializar la lista de stopwords si aún no existe en st.session_state
+    if 'new_stopwords' not in st.session_state:
+        st.session_state.new_stopwords = []
+
+    # Botón para borrar las stopwords
+    col5,col7 = st.sidebar.columns([7,3])
+    if col7.button("Borrar"):
+        st.session_state.new_stopwords = []
+    # Añadir un campo de entrada para que los usuarios ingresen palabras ad hoc
+    new_stopword = col5.text_input("Ingresa stopwords adicionales:", "")
+
+    # Verificar si la palabra ya está en la lista y agregarla si es necesario
+    if new_stopword.strip() and new_stopword.lower() not in st.session_state.new_stopwords:
+        st.session_state.new_stopwords.append(new_stopword.lower())
+        
+        # Agregar las palabras adicionales a la lista de stopwords_es si son válidas
+    for word in st.session_state.new_stopwords:
+        if word and word.lower() not in stopwords_es:
+                stopwords_es.append(word.lower())
+            
+
+    
+
+    
+    # Mostrar la lista de stopwords actualizada
+    if  new_stopword :
+        st.write("Lista de Stopwords Adicionales:")
+        st.write(st.session_state.new_stopwords)
+   
+    # Dividir el espacio en dos columnas
+    col3, col4 = st.sidebar.columns([5,5])
+
+                # Mostrar los  en las columnas respectivas
+   
+    analyze_sentiment_button = col3.button("Analizar ")
+
+    boton_resumir = col4.button('Resumir')
+        
+    st.sidebar.write("  ")
+
+    word_to_search = st.sidebar.text_input("Ingresa una palabra para buscar en el texto")
+    
+    st.sidebar.write("---")
+    col_11, col_12 = st.sidebar.columns([8,2])
+    def load_text_from_file_2():
+        uploaded_file = col_11.file_uploader("Cargar el segundo texto para comparar:", type=["txt"])
+        if uploaded_file is not None:
+            return uploaded_file.read().decode()
+        return None
+    
+    
+    input_text_2 = load_text_from_file_2()
+    
+      # Botónes 
+    descargar_texto_2 =col_12.button("Ver ")
     boton_comparar = st.sidebar.button("Comparar")
     
-    st.sidebar.title("Análisis de Sentimientos")
-    frec_pal = st.sidebar.number_input("Frecuencia mínima de palabras a plotear", min_value=1, max_value=30, value=1, step=1)
-    
-    # Añadir un campo de entrada para que los usuarios ingresen palabras ad hoc
-    st.sidebar.title("Stopword adicionales")
-    new_stopword = st.sidebar.text_input("Ingresa una palabra adicional:", "")
-    analyze_sentiment_button = st.sidebar.button("Analizar Sentimientos")
-    
-    st.sidebar.title('Resumir el Texto 1')
-    boton_resumir = st.sidebar.button('Resumir')
-    
-    st.sidebar.title("Palabras claves")
-    word_to_search = st.sidebar.text_input("Ingresa una palabra para buscar en el texto 1")
-    
+    st.sidebar.write("---")
     # Agregar la palabra adicional a la lista de stopwords si se ingresó una palabra válida
     if new_stopword and new_stopword not in stopwords_es:
             stopwords_es.append(new_stopword.lower())
@@ -299,7 +355,7 @@ def main():
                                 f.write("\n\nResumen generado por Scoring Model:\n\n")
                                 f.write(scoring_summa)
 
-                        st.balloons()
+                        
 
     if boton_resumir:
              resumir_text(input_text)
@@ -326,7 +382,7 @@ def main():
             word_freq_df = word_freq_df[word_freq_df['Frecuencia'] > frec_pal]
 
             # Plot de nube de palabras
-            wordcloud = WordCloud(width=800, height=400).generate(filtered_text)
+            wordcloud = WordCloud(width=800, height=400, background_color="white").generate(filtered_text)
 
             # Calcular las palabras positivas y negativas
             reviews_afinn = join_afinn_scores(filtered_words, afinn_lexicon)
@@ -338,10 +394,10 @@ def main():
             with st.spinner('Generando PDF...'):
                 
                 fig1, ax1 = plt.subplots(figsize=(10, 6))
-                ax1.bar(word_freq_df.index, word_freq_df['Frecuencia'])
-                ax1.set_xticklabels(word_freq_df.index, rotation=90)
-                ax1.set_xlabel("Palabras")
-                ax1.set_ylabel("Frecuencia")
+                ax1.barh(word_freq_df.index, word_freq_df['Frecuencia'])
+                ax1.set_yticklabels(word_freq_df.index)
+                ax1.set_ylabel("Palabras")
+                ax1.set_xlabel("Frecuencia")
                 st.pyplot(fig1)
 
                 fig2, ax2 = plt.subplots(figsize=(10, 6))
@@ -349,11 +405,19 @@ def main():
                 ax2.axis('off')
                 st.pyplot(fig2)
 
+              # Crear dos figuras usando tus funciones de trazado (plot_positivas y plot_negativas)
                 fig_pos = plot_positivas(positive_words)
-                st.pyplot(fig_pos)
-
                 fig_neg = plot_negativas(negative_words)
-                st.pyplot(fig_neg)
+
+                # Dividir el espacio en dos columnas
+                col1, col2 = st.columns(2)
+
+                # Mostrar los gráficos en las columnas respectivas
+                with col1:
+                    st.pyplot(fig_pos)
+
+                with col2:
+                    st.pyplot(fig_neg)
 
                 # Crear el PDF
                 with PdfPages(pdf_buffer) as pdf:
@@ -384,7 +448,7 @@ def main():
             st.write("Por favor, ingresa texto antes de generar el análisis de sentimientos.")
 
     # Verificar si una palabra es positiva o negativa
-    st.sidebar.title("Verificar Sentimientos")
+
     word = st.sidebar.text_input("Ingresa una palabra para verificar su sentimiento")
     if word:
         word_scores = pd.merge(pd.DataFrame([word], columns=['Palabra']), afinn_lexicon, on='Palabra', how='inner')
@@ -420,10 +484,7 @@ def main():
         else:
             st.write(f"La palabra '{word_to_search}' no se encuentra en ninguna oración.")
 
-    # Mostrar la interfaz de usuario
-    st.sidebar.write("---")
-    st.sidebar.write("¡Con esta herramienta podes comparar y analizar diferentes textos!")
+  
 
 if __name__ == "__main__":
     main()
-
